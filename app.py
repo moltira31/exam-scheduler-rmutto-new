@@ -291,7 +291,7 @@ else:
         fac_col1, fac_col2, fac_col3 = st.columns(3)
         with fac_col1: rule_agri = st.number_input("🌾 เทคโนฯ เกษตร (คน/ห้อง)", 1, 5, 2)
         with fac_col2: rule_soc = st.number_input("💼 เทคโนฯ สังคม (คน/ห้อง)", 1, 5, 2)
-        with fac_col3: rule_eng = st.number_input("⚙️ คณะวิศวกรรมศาสตร์ (คน/ห้อง)", 1, 5, 2)
+        with fac_col3: rule_eng = st.number_input("⚙️ วิศวกรรมศาสตร์ (คน/ห้อง)", 1, 5, 2)
         faculty_rule_map = {
             "คณะเทคโนโลยีอุตสาหกรรมการเกษตร": rule_agri, 
             "คณะเทคโนโลยีสังคม": rule_soc, 
