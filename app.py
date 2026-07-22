@@ -7,7 +7,7 @@ import streamlit as st
 
 # ==================== 1. ตั้งค่าหน้าจอโปรแกรม ====================
 st.set_page_config(
-    page_title="ระบบจัดตารางสอบ - มทร.ตะวันออก วิทยาเขตจันทบุรี",
+    page_title="ระบบจัดตารางสอบ - by น้องมล",
     page_icon="🏫",
     layout="wide",
 )
@@ -263,7 +263,7 @@ if not st.session_state["logged_in"]:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.title("ระบบจัดตารางสอบอัตโนมัติ")
-        st.subheader("งานส่งเสริมวิชาการและงานทะเบียน วิทยาเขตจันทบุรี")
+        st.subheader("สำหรับทดสอบ By น้องมล")
         username_input = st.text_input("ชื่อผู้ใช้งาน")
         password_input = st.text_input("รหัสผ่าน", type="password")
         if st.button("เข้าสู่ระบบ 🔐", use_container_width=True):
