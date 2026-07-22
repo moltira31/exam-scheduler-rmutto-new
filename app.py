@@ -515,7 +515,7 @@ else:
             )
         with fac_col3:
             rule_gem = st.number_input(
-                "💎 คณะอัญมณี (คน/ห้อง)",
+                "💎 คณะวิศวกรรมศาสตร์(คน/ห้อง)",
                 min_value=1,
                 max_value=5,
                 value=2,
