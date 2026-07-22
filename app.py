@@ -12,9 +12,9 @@ st.set_page_config(
     layout="wide",
 )
 
-USER_CREDENTIALS = {"monthira": "123456", "registry_staff": "rmutto456"}
+USER_CREDENTIALS = {"admin1": "rmutto123", "registry_staff": "rmutto456"}
 
-# Session States สำหรับเก็บ Master Data ที่อัปเดตได้ตลอดเวลา
+# Session States
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "username" not in st.session_state:
@@ -43,7 +43,7 @@ if "df_rooms" not in st.session_state:
         {
             "อาคาร": "อาคารปฏิบัติการไอที",
             "รหัสห้อง": "IT-201",
-            "ความจุสอบ": 50,
+            "ความจุสอบ": 70,  # ขยายขนาดเพื่อรองรับวิชาคอมพิวเตอร์กลุ่มใหญ่
             "ประเภท": "ห้องปฏิบัติการคอมพิวเตอร์",
             "สถานะ": "ใช้งานได้",
         },
@@ -90,6 +90,63 @@ def get_column_value(row, possible_names, default_val=""):
         if name in row.index and pd.notna(row[name]):
             return row[name]
     return default_val
+
+
+def create_test_subject_excel():
+    test_data = {
+        "คณะ": [
+            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
+            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
+            "คณะเทคโนโลยีสังคม",
+            "คณะเทคโนโลยีสังคม",
+            "คณะเทคโนโลยีสังคม",
+        ],
+        "รหัสวิชา": [
+            "05-110-104",
+            "05-300-201",
+            "02-110-104",
+            "02-303-101",
+            "02-303-102",
+        ],
+        "ชื่อวิชา": [
+            "ภาษาอังกฤษเพื่อการสื่อสาร",
+            "แคลคูลัสสำหรับวิศวกร",
+            "ภาษาอังกฤษเพื่อการสื่อสาร",
+            "การเขียนโปรแกรมคอมพิวเตอร์",
+            "โครงสร้างข้อมูลและอัลกอริทึม",
+        ],
+        "กลุ่มเรียน": ["AG-101", "AG-101", "SO-101", "IT-101", "IT-101"],
+        "จำนวนผู้เข้าสอบ": [35, 35, 25, 45, 65],
+        "ชื่อผู้สอน": [
+            "อ.มาริสา คงดี",
+            "ดร.วิชัย คำนวณตรง",
+            "อ.มาริสา คงดี",
+            "ดร.สมชาย ใจดี",
+            "อ.สมศักดิ์ สายชล",
+        ],
+        "สังกัดสาขา": [
+            "ภาษาศาสตร์",
+            "วิศวกรรมเกษตร",
+            "ภาษาศาสตร์",
+            "เทคโนโลยีสารสนเทศ",
+            "เทคโนโลยีสารสนเทศ",
+        ],
+        "ประเภทการสอบ": [
+            "ทฤษฎี",
+            "ทฤษฎี",
+            "ทฤษฎี",
+            "ปฏิบัติคอมพิวเตอร์",
+            "ปฏิบัติคอมพิวเตอร์",
+        ],
+        "ชั่วโมงสอบ_M": [1.5, 2.0, 1.5, 2.0, 2.0],
+        "ชั่วโมงสอบ_F": [2.0, 3.0, 2.0, 3.0, 3.0],
+        "วิชาคำนวณ": ["NO", "YES", "NO", "NO", "YES"],
+    }
+    df = pd.DataFrame(test_data)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Exam_Subjects")
+    return buffer.getvalue()
 
 
 def generate_time_slots(start_date, end_date, daily_slots):
@@ -196,7 +253,6 @@ def auto_schedule_exams_advanced(
         used_invs = invigilator_occupancy.get(slot_str, set())
         assigned = []
 
-        # ดึงรายชื่ออาจารย์นอกตาราง และ เจ้าหน้าที่สำรอง ของคณะนี้จาก Master Data
         fac_staff_df = df_staff_pool[df_staff_pool["คณะ"] == faculty_name]
         extra_teachers = list(
             fac_staff_df[fac_staff_df["ประเภท"] == "อาจารย์ในคณะ"][
@@ -209,19 +265,16 @@ def auto_schedule_exams_advanced(
             ]["ชื่อ-นามสกุล"].unique()
         )
 
-        # ---------------- Rule 1 ----------------
         if rule == 1:
             req_count = 1
             if instructor not in used_invs:
                 assigned.append(instructor)
 
-        # ---------------- Rule 2 ----------------
         elif rule == 2:
             req_count = 2
             if instructor not in used_invs:
                 assigned.append(instructor)
 
-            # ดึงอาจารย์คนอื่นในคณะ (ทั้งที่มีสอนและไม่มีสอนในเทอมนี้)
             pool = list(set(subj_teachers + extra_teachers))
             pool.sort(key=lambda t: invigilator_workload.get(t, 0))
 
@@ -231,7 +284,6 @@ def auto_schedule_exams_advanced(
                     if len(assigned) == req_count:
                         break
 
-            # ถ้าอาจารย์ไม่พอ ดึงเจ้าหน้าที่สำรองส่วนกลาง
             if len(assigned) < req_count:
                 for staff in backup_staffs:
                     if staff not in assigned and staff not in used_invs:
@@ -239,7 +291,6 @@ def auto_schedule_exams_advanced(
                         if len(assigned) == req_count:
                             break
 
-        # ---------------- Rule 3 ----------------
         elif rule == 3:
             if total_students <= 30:
                 req_count = 1
@@ -248,11 +299,9 @@ def auto_schedule_exams_advanced(
             else:
                 req_count = 3
 
-            # ผู้สอนคุมได้ถ้าว่าง (ไม่บังคับ)
             if instructor not in used_invs:
                 assigned.append(instructor)
 
-            # ดึงอาจารย์ทั้งหมดในคณะ
             pool = list(set(subj_teachers + extra_teachers))
             pool.sort(key=lambda t: invigilator_workload.get(t, 0))
 
@@ -262,7 +311,6 @@ def auto_schedule_exams_advanced(
                     if len(assigned) == req_count:
                         break
 
-            # ถ้าอาจารย์ไม่พอ ดึงเจ้าหน้าที่สำรองส่วนกลาง
             if len(assigned) < req_count:
                 for staff in backup_staffs:
                     if staff not in assigned and staff not in used_invs:
@@ -354,7 +402,6 @@ def auto_schedule_exams_advanced(
                 slot_str = slot_obj["full_slot"]
                 date_str = slot_obj["date_str"]
 
-                # 1. Hard Constraint: ห้ามสอบซ้ำเวลา
                 conflict = any(
                     g in student_group_occupancy.get(slot_str, set())
                     for g in groups_list
@@ -362,7 +409,6 @@ def auto_schedule_exams_advanced(
                 if conflict:
                     continue
 
-                # 2. Soft Constraint: ไม่เกิน 2 วิชา/วัน
                 if (
                     max(
                         student_group_daily_count.get((g, date_str), 0)
@@ -372,14 +418,12 @@ def auto_schedule_exams_advanced(
                 ):
                     continue
 
-                # 3. Soft Constraint: เลี่ยงวิชาหนักซ้ำวัน
                 if is_heavy and any(
                     student_group_daily_heavy.get((g, date_str), False)
                     for g in groups_list
                 ):
                     continue
 
-                # 4. Hard Constraint: จัดผู้คุมสอบ
                 invig_list = assign_invigilators(
                     faculty_name,
                     instructor,
@@ -390,7 +434,6 @@ def auto_schedule_exams_advanced(
                 if not invig_list:
                     continue
 
-                # 5. หาห้องสอบ
                 used_rms = room_occupancy.get(slot_str, set())
                 avail_rm = None
                 for _, rm in valid_rooms.iterrows():
@@ -502,7 +545,7 @@ if not st.session_state["logged_in"]:
 else:
     header_col1, header_col2 = st.columns([8, 2])
     with header_col1:
-        st.title("🏫 ระบบจัดการตารางสอบ (Dynamic Master Data)")
+        st.title("🏫 ระบบจัดการตารางสอบ")
         st.caption("มหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก วิทยาเขตจันทบุรี")
     with header_col2:
         st.write(f"ผู้ใช้งาน: **{st.session_state['username']}**")
@@ -518,6 +561,17 @@ else:
             "2. จัดการห้องสอบ (อัปเดตทุกเทอม)",
             "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง (อัปเดตทุกเทอม)",
         ],
+    )
+
+    # ปุ่มดาวน์โหลดไฟล์ทดสอบบน Sidebar
+    st.sidebar.markdown("---")
+    st.sidebar.header("📥 ตัวอย่างไฟล์ทดสอบ")
+    st.sidebar.download_button(
+        label="ดาวน์โหลดไฟล์ตัวอย่างวิชาสอบ (.xlsx)",
+        data=create_test_subject_excel(),
+        file_name="test_exam_subjects.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        use_container_width=True,
     )
 
     # ------------------ เมนูที่ 1: จัดตารางสอบ ------------------
@@ -607,11 +661,8 @@ else:
     # ------------------ เมนูที่ 2: จัดการห้องสอบ ------------------
     elif menu_selection == "2. จัดการห้องสอบ (อัปเดตทุกเทอม)":
         st.header("🏫 จัดการข้อมูลห้องสอบประจำภาคเรียน")
-        st.caption(
-            "สามารถแก้ไข ลบ หรือเพิ่มห้องสอบใหม่ในตารางด้านล่างได้ทันที ข้อมูลจะถูกนำไปใช้คำนวณตารางสอบทันที"
-        )
+        st.caption("สามารถแก้ไข ลบ หรือเพิ่มห้องสอบใหม่ในตารางด้านล่างได้ทันที")
 
-        # ใช้ Data Editor ให้กดแก้บนตารางได้แบบ Excel
         edited_rooms = st.data_editor(
             st.session_state["df_rooms"],
             num_rows="dynamic",
@@ -631,9 +682,7 @@ else:
         st.header(
             "👥 จัดการรายชื่ออาจารย์นอกตารางสอบ & เจ้าหน้าที่สำรองส่วนกลาง"
         )
-        st.info(
-            "💡 ข้อมูลส่วนนี้จะถูกดึงไปใช้คุมสอบอัตโนมัติ สำหรับ **คณะที่ 2 และ คณะที่ 3** (หรือคณะที่ 1 หากอนาคตเปลี่ยนกฎ)"
-        )
+        st.info("💡 ข้อมูลส่วนนี้จะถูกดึงไปใช้คุมสอบอัตโนมัติ สำหรับ **คณะที่ 2 และ คณะที่ 3**")
 
         edited_staff = st.data_editor(
             st.session_state["df_staff_pool"],
