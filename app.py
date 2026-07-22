@@ -43,7 +43,7 @@ if "df_rooms" not in st.session_state:
         {
             "อาคาร": "อาคารปฏิบัติการไอที",
             "รหัสห้อง": "IT-201",
-            "ความจุสอบ": 70,  # ขยายขนาดเพื่อรองรับวิชาคอมพิวเตอร์กลุ่มใหญ่
+            "ความจุสอบ": 70,
             "ประเภท": "ห้องปฏิบัติการคอมพิวเตอร์",
             "สถานะ": "ใช้งานได้",
         },
@@ -165,7 +165,7 @@ def generate_time_slots(start_date, end_date, daily_slots):
     return slots
 
 
-# ==================== 2. อัลกอริทึมจัดตารางสอบ ====================
+# ==================== 2. อัลกอริทึมจัดตารางสอบ (อัปเดตกฎผู้คุมสอบ) ====================
 def auto_schedule_exams_advanced(
     df_subjects,
     df_rooms,
@@ -245,7 +245,7 @@ def auto_schedule_exams_advanced(
 
     results = []
 
-    # ฟังก์ชันคำนวณผู้คุมสอบยืดหยุ่นตามกฎคณะ
+    # 🎯 ปรับปรุงฟังก์ชันคำนวณผู้คุมสอบตามกฎใหม่
     def assign_invigilators(
         faculty_name, instructor, total_students, slot_str, subj_teachers
     ):
@@ -265,16 +265,19 @@ def auto_schedule_exams_advanced(
             ]["ชื่อ-นามสกุล"].unique()
         )
 
+        # กฎข้อที่ 1: ใช้ผู้คุมสอบ 1 คน (อาจารย์ผู้สอน)
         if rule == 1:
             req_count = 1
             if instructor not in used_invs:
                 assigned.append(instructor)
 
+        # กฎข้อที่ 2: ใช้ผู้คุมสอบ ขั้นต่ำ 2 คนเสมอ
         elif rule == 2:
             req_count = 2
             if instructor not in used_invs:
                 assigned.append(instructor)
 
+            # ดึงจากผู้สอนคนอื่น + อาจารย์ในคณะที่ไม่ได้ลงสอน
             pool = list(set(subj_teachers + extra_teachers))
             pool.sort(key=lambda t: invigilator_workload.get(t, 0))
 
@@ -284,6 +287,7 @@ def auto_schedule_exams_advanced(
                     if len(assigned) == req_count:
                         break
 
+            # หากยังไม่ครบ 2 คน ให้ดึงเจ้าหน้าที่สำรอง
             if len(assigned) < req_count:
                 for staff in backup_staffs:
                     if staff not in assigned and staff not in used_invs:
@@ -291,13 +295,12 @@ def auto_schedule_exams_advanced(
                         if len(assigned) == req_count:
                             break
 
+        # กฎข้อที่ 3: ขั้นต่ำเริ่มที่ 2 คน (<=60 คนใช้ 2 คน, >60 คนใช้ 3 คน)
         elif rule == 3:
-            if total_students <= 30:
-                req_count = 1
-            elif total_students <= 60:
-                req_count = 2
+            if total_students <= 60:
+                req_count = 2  # ขั้นต่ำเริ่มต้นที่ 2 คน
             else:
-                req_count = 3
+                req_count = 3  # หากเกิน 60 คนใช้ 3 คน
 
             if instructor not in used_invs:
                 assigned.append(instructor)
@@ -612,12 +615,9 @@ else:
             "สิ้นสุดปลายภาค", datetime.date(2026, 11, 1)
         )
 
-        # ==================== ปรับช่วงเวลาสอบใหม่ ====================
-        # ช่วงเช้าเริ่ม 09:00 - 12:00 / ช่วงบ่ายเริ่ม 13:30 เป็นต้นไป
         daily_slots = [
-            "09:00 - 12:00",  # ช่วงเช้า
-            "13:30 - 16:30",  # ช่วงบ่าย
-        ]
+            "09:00 - 12:00",
+            "13:30 - 16:30",
         ]
 
         uploaded_file = st.file_uploader(
@@ -683,7 +683,7 @@ else:
         st.header(
             "👥 จัดการรายชื่ออาจารย์นอกตารางสอบ & เจ้าหน้าที่สำรองส่วนกลาง"
         )
-        st.info("💡 ข้อมูลส่วนนี้จะถูกดึงไปใช้คุมสอบอัตโนมัติ สำหรับ **คณะที่ 2 และ คณะที่ 3**")
+        st.info("💡 ข้อมูลส่วนนี้จะถูกดึงไปใช้คุมสอบอัตโนมัติ สำหรับ **กฎคณะที่ 2 และ กฎคณะที่ 3**")
 
         edited_staff = st.data_editor(
             st.session_state["df_staff_pool"],
