@@ -20,7 +20,6 @@ if "logged_in" not in st.session_state:
 if "username" not in st.session_state:
     st.session_state["username"] = ""
 
-# --- เพิ่มตัวแปร Session State สำหรับจดจำข้อมูลป้องกันการจัดชนกัน ---
 if "history_schedule" not in st.session_state:
     st.session_state["history_schedule"] = pd.DataFrame()
 if "show_confirm_clear" not in st.session_state:
@@ -48,15 +47,15 @@ if "df_rooms" not in st.session_state:
         {"อาคาร": "อาคารปฏิบัติการไอที", "รหัสห้อง": "IT-LAB1", "ความจุสอบ": 80, "ประเภท": "ห้องปฏิบัติการคอมพิวเตอร์", "สถานะ": "ใช้งานได้"},
     ])
 
-# 2. ฐานข้อมูลบุคลากรคุมสอบสำรอง (อัปเดต คณะวิศวกรรมศาสตร์)
+# 2. ฐานข้อมูลบุคลากรคุมสอบ/ผู้สอน (พร้อมระบบกำหนดคาบที่ไม่สะดวกคุมสอบ)
 if "df_staff_pool" not in st.session_state:
     st.session_state["df_staff_pool"] = pd.DataFrame([
-        {"คณะ": "คณะเทคโนโลยีอุตสาหกรรมการเกษตร", "ชื่อ-นามสกุล": "ดร.สมเกียรติ มั่นคง", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ"},
-        {"คณะ": "คณะเทคโนโลยีอุตสาหกรรมการเกษตร", "ชื่อ-นามสกุล": "นายวิชัย สำรองดี", "ตำแหน่ง": "เจ้าหน้าที่บริหารงานทั่วไป", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง"},
-        {"คณะ": "คณะเทคโนโลยีสังคม", "ชื่อ-นามสกุล": "อ.ประเสริฐ นามดี", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ"},
-        {"คณะ": "คณะเทคโนโลยีสังคม", "ชื่อ-นามสกุล": "นางสาวนภา ใจเย็น", "ตำแหน่ง": "นักวิชาการศึกษา", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง"},
-        {"คณะ": "คณะวิศวกรรมศาสตร์", "ชื่อ-นามสกุล": "ดร.กิตติศักดิ์ มณี", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ"},
-        {"คณะ": "คณะวิศวกรรมศาสตร์", "ชื่อ-นามสกุล": "นายสมพร งามดี", "ตำแหน่ง": "นักวิชาการศึกษา", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง"},
+        {"คณะ": "คณะเทคโนโลยีอุตสาหกรรมการเกษตร", "ชื่อ-นามสกุล": "ดร.สมเกียรติ มั่นคง", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ", "คาบที่ไม่สะดวกคุมสอบ": ""},
+        {"คณะ": "คณะเทคโนโลยีอุตสาหกรรมการเกษตร", "ชื่อ-นามสกุล": "นายวิชัย สำรองดี", "ตำแหน่ง": "เจ้าหน้าที่บริหารงานทั่วไป", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง", "คาบที่ไม่สะดวกคุมสอบ": ""},
+        {"คณะ": "คณะเทคโนโลยีสังคม", "ชื่อ-นามสกุล": "อ.ประเสริฐ นามดี", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ", "คาบที่ไม่สะดวกคุมสอบ": ""},
+        {"คณะ": "คณะเทคโนโลยีสังคม", "ชื่อ-นามสกุล": "นางสาวนภา ใจเย็น", "ตำแหน่ง": "นักวิชาการศึกษา", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง", "คาบที่ไม่สะดวกคุมสอบ": ""},
+        {"คณะ": "คณะวิศวกรรมศาสตร์", "ชื่อ-นามสกุล": "ดร.กิตติศักดิ์ มณี", "ตำแหน่ง": "อาจารย์", "ประเภท": "อาจารย์ในคณะ", "คาบที่ไม่สะดวกคุมสอบ": ""},
+        {"คณะ": "คณะวิศวกรรมศาสตร์", "ชื่อ-นามสกุล": "นายสมพร งามดี", "ตำแหน่ง": "นักวิชาการศึกษา", "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง", "คาบที่ไม่สะดวกคุมสอบ": ""},
     ])
 
 def logout():
@@ -121,6 +120,14 @@ def auto_schedule_exams_combined(df_subjects, df_rooms, df_staff_pool, slots_m, 
     invigilator_occupancy = st.session_state["occ_invigs"]
     invigilator_workload = st.session_state["occ_workload"]
 
+    # สร้าง Dictionary ตรวจสอบเวลาที่ไม่สะดวกของผู้คุมสอบ
+    unavail_map = {}
+    for _, row in df_staff_pool.iterrows():
+        name = str(row.get("ชื่อ-นามสกุล", "")).strip()
+        unavail = str(row.get("คาบที่ไม่สะดวกคุมสอบ", "")).strip()
+        if name and unavail and unavail.lower() != "nan":
+            unavail_map[name] = [u.strip() for u in unavail.split(",") if u.strip()]
+
     unassigned_warnings = []
     
     grouped_tasks = []
@@ -139,7 +146,6 @@ def auto_schedule_exams_combined(df_subjects, df_rooms, df_staff_pool, slots_m, 
         calc_req = math.ceil(total_students / 40)
         req_count = max(min_rule, calc_req)
 
-        # จัดกลุ่มบุคลากรแยกตามคณะ
         fac_staff_df = df_staff_pool[df_staff_pool["คณะ"] == faculty_name]
         other_staff_df = df_staff_pool[df_staff_pool["คณะ"] != faculty_name]
 
@@ -149,24 +155,28 @@ def auto_schedule_exams_combined(df_subjects, df_rooms, df_staff_pool, slots_m, 
         other_fac_teachers = list(other_staff_df[other_staff_df["ประเภท"] == "อาจารย์ในคณะ"]["ชื่อ-นามสกุล"].unique())
         other_fac_backup = list(other_staff_df[other_staff_df["ประเภท"] == "เจ้าหน้าที่สำรองส่วนกลาง"]["ชื่อ-นามสกุล"].unique())
 
-        # เพิ่มอาจารย์ผู้สอนวิชานั้นก่อนเสมอถ้าว่าง
-        if instructor not in used_invs:
+        # ตรวจสอบอาจารย์ผู้สอนก่อนว่าติดเวลาที่ไม่สะดวกหรือไม่
+        instr_unavail = unavail_map.get(instructor, [])
+        is_instr_blocked = any(un_slot in slot_str for un_slot in instr_unavail)
+
+        if instructor not in used_invs and not is_instr_blocked:
             assigned.append(instructor)
 
-        # ลำดับการเลือกตามเงื่อนไข (Proctor Mode)
         if proctor_mode == "คณะตนเองเท่านั้น (Strict)":
             pool = same_fac_teachers + same_fac_backup
         elif proctor_mode == "ข้ามคณะได้อิสระ (Any Faculty)":
             pool = same_fac_teachers + other_fac_teachers + same_fac_backup + other_fac_backup
-        else: # จัดในคณะก่อน หากไม่พอค่อยข้ามคณะ (Priority)
+        else:
             pool = same_fac_teachers + same_fac_backup + other_fac_teachers + other_fac_backup
 
-        pool = list(dict.fromkeys(pool)) # ลบรายชื่อซ้ำ
-        pool.sort(key=lambda t: invigilator_workload.get(t, 0)) # เรียงตามภาระงานคุมสอบเดิม
+        pool = list(dict.fromkeys(pool))
+        pool.sort(key=lambda t: invigilator_workload.get(t, 0))
 
         for t in pool:
             if len(assigned) >= req_count: break
-            if t not in assigned and t not in used_invs:
+            t_unavail = unavail_map.get(t, [])
+            is_blocked = any(un_slot in slot_str for un_slot in t_unavail)
+            if t not in assigned and t not in used_invs and not is_blocked:
                 assigned.append(t)
 
         return assigned
@@ -278,7 +288,7 @@ else:
         [
             "1. จัดตารางสอบประจำเทอม",
             "2. จัดการห้องสอบ (อัปเดตทุกเทอม)",
-            "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง",
+            "3. จัดการบุคลากรคุมสอบ/คาบที่ไม่สะดวก",
             "4. ประวัติตารางสอบที่จัดแล้ว (กันชน)", 
         ],
     )
@@ -291,7 +301,7 @@ else:
         fac_col1, fac_col2, fac_col3 = st.columns(3)
         with fac_col1: rule_agri = st.number_input("🌾 เทคโนฯ เกษตร (คน/ห้อง)", 1, 5, 2)
         with fac_col2: rule_soc = st.number_input("💼 เทคโนฯ สังคม (คน/ห้อง)", 1, 5, 2)
-        with fac_col3: rule_eng = st.number_input("⚙️ วิศวกรรมศาสตร์ (คน/ห้อง)", 1, 5, 2)
+        with fac_col3: rule_eng = st.number_input("⚙️ คณะวิศวกรรมศาสตร์ (คน/ห้อง)", 1, 5, 2)
         faculty_rule_map = {
             "คณะเทคโนโลยีอุตสาหกรรมการเกษตร": rule_agri, 
             "คณะเทคโนโลยีสังคม": rule_soc, 
@@ -363,8 +373,9 @@ else:
             st.session_state["df_rooms"] = edited_rooms
             st.success("บันทึกเรียบร้อย!")
 
-    elif menu_selection == "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง":
-        st.header("👥 รายชื่อเจ้าหน้าที่คุมสอบเสริม")
+    elif menu_selection == "3. จัดการบุคลากรคุมสอบ/คาบที่ไม่สะดวก":
+        st.header("👥 รายชื่อเจ้าหน้าที่คุมสอบเสริมและคาบที่ไม่สะดวก")
+        st.caption("💡 สามารถระบุคาบที่ไม่สะดวกในคอลัมน์ 'คาบที่ไม่สะดวกคุมสอบ' ได้ เช่น `25/08/2026 (09:00 - 12:00)` หากมีหลายคาบให้ใช้เครื่องหมายจุลภาค (,) คั่น")
         edited_staff = st.data_editor(st.session_state["df_staff_pool"], num_rows="dynamic", use_container_width=True)
         if st.button("บันทึกรายชื่อ 💾", type="primary"):
             st.session_state["df_staff_pool"] = edited_staff
