@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide",
 )
 
-USER_CREDENTIALS = {"admin1": "rmutto123", "registry_staff": "rmutto456"}
+USER_CREDENTIALS = {"monthira": "123456", "registry_staff": "rmutto456"}
 
 # Session States สำหรับเก็บ Master Data ที่อัปเดตได้ตลอดเวลา
 if "logged_in" not in st.session_state:
