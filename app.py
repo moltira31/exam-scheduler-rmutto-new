@@ -1,7 +1,7 @@
 import datetime
 import io
+import math
 import openpyxl
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 import pandas as pd
 import streamlit as st
 
@@ -12,6 +12,7 @@ st.set_page_config(
     layout="wide",
 )
 
+# อัปเดตข้อมูล Login ตามที่แจ้ง (monthira / 123456)
 USER_CREDENTIALS = {"monthira": "123456", "registry_staff": "rmutto456"}
 
 # Session States
@@ -29,33 +30,40 @@ if "df_rooms" not in st.session_state:
         {
             "อาคาร": "อาคารเรียนรวม 36 ปี",
             "รหัสห้อง": "36-301",
-            "ความจุสอบ": 40,
+            "ความจุสอบ": 50,
             "ประเภท": "ห้องทฤษฎี",
             "สถานะ": "ใช้งานได้",
         },
         {
             "อาคาร": "อาคารเรียนรวม 36 ปี",
-            "รหัสห้อง": "36-302",
-            "ความจุสอบ": 80,
+            "รหัสห้อง": "ห้องประชุมใหญ่ 36 ปี",
+            "ความจุสอบ": 250,
+            "ประเภท": "ห้องทฤษฎี",
+            "สถานะ": "ใช้งานได้",
+        },
+        {
+            "อาคาร": "อาคารเรียนรวม 36 ปี",
+            "รหัสห้อง": "หอประชุมจันทบุรี",
+            "ความจุสอบ": 500,
             "ประเภท": "ห้องทฤษฎี",
             "สถานะ": "ใช้งานได้",
         },
         {
             "อาคาร": "อาคารปฏิบัติการไอที",
-            "รหัสห้อง": "IT-201",
-            "ความจุสอบ": 70,
+            "รหัสห้อง": "IT-LAB1",
+            "ความจุสอบ": 80,
             "ประเภท": "ห้องปฏิบัติการคอมพิวเตอร์",
             "สถานะ": "ใช้งานได้",
         },
     ])
 
-# 2. ฐานข้อมูลบุคลากรคุมสอบสำรอง/อาจารย์นอกตาราง (เริ่มต้น)
+# 2. ฐานข้อมูลบุคลากรคุมสอบสำรอง
 if "df_staff_pool" not in st.session_state:
     st.session_state["df_staff_pool"] = pd.DataFrame([
         {
             "คณะ": "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
             "ชื่อ-นามสกุล": "ดร.สมเกียรติ มั่นคง",
-            "ตำแหน่ง": "อาจารย์ (ไม่ได้ลงสอนเทอมนี้)",
+            "ตำแหน่ง": "อาจารย์",
             "ประเภท": "อาจารย์ในคณะ",
         },
         {
@@ -67,12 +75,24 @@ if "df_staff_pool" not in st.session_state:
         {
             "คณะ": "คณะเทคโนโลยีสังคม",
             "ชื่อ-นามสกุล": "อ.ประเสริฐ นามดี",
-            "ตำแหน่ง": "อาจารย์ (ไม่ได้ลงสอนเทอมนี้)",
+            "ตำแหน่ง": "อาจารย์",
             "ประเภท": "อาจารย์ในคณะ",
         },
         {
             "คณะ": "คณะเทคโนโลยีสังคม",
             "ชื่อ-นามสกุล": "นางสาวนภา ใจเย็น",
+            "ตำแหน่ง": "นักวิชาการศึกษา",
+            "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง",
+        },
+        {
+            "คณะ": "คณะอัญมณี",
+            "ชื่อ-นามสกุล": "ดร.กิตติศักดิ์ มณี",
+            "ตำแหน่ง": "อาจารย์",
+            "ประเภท": "อาจารย์ในคณะ",
+        },
+        {
+            "คณะ": "คณะอัญมณี",
+            "ชื่อ-นามสกุล": "นายสมพร งามดี",
             "ตำแหน่ง": "นักวิชาการศึกษา",
             "ประเภท": "เจ้าหน้าที่สำรองส่วนกลาง",
         },
@@ -92,55 +112,77 @@ def get_column_value(row, possible_names, default_val=""):
     return default_val
 
 
+def parse_int_safe(val, default=0):
+    try:
+        if pd.notna(val) and str(val).strip() != "":
+            return int(float(str(val).strip()))
+    except (ValueError, TypeError):
+        pass
+    return default
+
+
 def create_test_subject_excel():
     test_data = {
         "คณะ": [
+            "หมวดวิชาศึกษาทั่วไป (GE)",
+            "หมวดวิชาศึกษาทั่วไป (GE)",
+            "หมวดวิชาศึกษาทั่วไป (GE)",
             "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
-            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
             "คณะเทคโนโลยีสังคม",
-            "คณะเทคโนโลยีสังคม",
-            "คณะเทคโนโลยีสังคม",
+            "คณะอัญมณี",
         ],
         "รหัสวิชา": [
-            "05-110-104",
+            "GE-101",
+            "GE-101",
+            "GE-101",
             "05-300-201",
-            "02-110-104",
             "02-303-101",
-            "02-303-102",
+            "03-101-102",
         ],
         "ชื่อวิชา": [
-            "ภาษาอังกฤษเพื่อการสื่อสาร",
+            "การพัฒนาคุณภาพชีวิต",
+            "การพัฒนาคุณภาพชีวิต",
+            "การพัฒนาคุณภาพชีวิต",
             "แคลคูลัสสำหรับวิศวกร",
-            "ภาษาอังกฤษเพื่อการสื่อสาร",
             "การเขียนโปรแกรมคอมพิวเตอร์",
-            "โครงสร้างข้อมูลและอัลกอริทึม",
+            "อัญมณีศาสตร์เบื้องต้น",
         ],
-        "กลุ่มเรียน": ["AG-101", "AG-101", "SO-101", "IT-101", "IT-101"],
-        "จำนวนผู้เข้าสอบ": [35, 35, 25, 45, 65],
+        "กลุ่มเรียน": [
+            "GE-01",
+            "GE-02",
+            "GE-03",
+            "AG-101",
+            "IT-101",
+            "GEM-101",
+        ],
+        "จำนวนผู้เข้าสอบ": [60, 50, 40, 35, 45, 30],
         "ชื่อผู้สอน": [
-            "อ.มาริสา คงดี",
+            "ดร.อนันต์ เรียนดี",
+            "ดร.อนันต์ เรียนดี",
+            "อ.วิภา นามสว่าง",
             "ดร.วิชัย คำนวณตรง",
-            "อ.มาริสา คงดี",
             "ดร.สมชาย ใจดี",
-            "อ.สมศักดิ์ สายชล",
+            "ดร.ศิริพร อัญมณี",
         ],
         "สังกัดสาขา": [
-            "ภาษาศาสตร์",
+            "ศึกษาทั่วไป",
+            "ศึกษาทั่วไป",
+            "ศึกษาทั่วไป",
             "วิศวกรรมเกษตร",
-            "ภาษาศาสตร์",
             "เทคโนโลยีสารสนเทศ",
-            "เทคโนโลยีสารสนเทศ",
+            "อัญมณีศาสตร์",
         ],
         "ประเภทการสอบ": [
             "ทฤษฎี",
             "ทฤษฎี",
             "ทฤษฎี",
+            "ทฤษฎี",
             "ปฏิบัติคอมพิวเตอร์",
-            "ปฏิบัติคอมพิวเตอร์",
+            "ทฤษฎี",
         ],
-        "ชั่วโมงสอบ_M": [1.5, 2.0, 1.5, 2.0, 2.0],
-        "ชั่วโมงสอบ_F": [2.0, 3.0, 2.0, 3.0, 3.0],
-        "วิชาคำนวณ": ["NO", "YES", "NO", "NO", "YES"],
+        "ชั่วโมงสอบ_M": [2.0, 2.0, 2.0, 2.0, 2.0, 2.0],
+        "ชั่วโมงสอบ_F": [3.0, 3.0, 3.0, 3.0, 3.0, 3.0],
+        "วิชาคำนวณ": ["NO", "NO", "NO", "YES", "NO", "NO"],
     }
     df = pd.DataFrame(test_data)
     buffer = io.BytesIO()
@@ -165,18 +207,21 @@ def generate_time_slots(start_date, end_date, daily_slots):
     return slots
 
 
-# ==================== 2. อัลกอริทึมจัดตารางสอบ (อัปเดตกฎผู้คุมสอบ) ====================
-def auto_schedule_exams_advanced(
+# ==================== 2. อัลกอริทึมจัดตารางสอบ (สอบรวมห้องใหญ่) ====================
+def auto_schedule_exams_combined(
     df_subjects,
     df_rooms,
     df_staff_pool,
     slots_m,
     slots_f,
-    existing_schedule=None,
     faculty_rule_map=None,
 ):
     if faculty_rule_map is None:
-        faculty_rule_map = {}
+        faculty_rule_map = {
+            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร": 2,
+            "คณะเทคโนโลยีสังคม": 2,
+            "คณะอัญมณี": 2,
+        }
 
     student_group_occupancy = {}
     student_group_daily_count = {}
@@ -187,71 +232,40 @@ def auto_schedule_exams_advanced(
 
     unassigned_warnings = []
 
-    # โหลดประวัติการจัดสอบเดิม
-    if existing_schedule is not None and not existing_schedule.empty:
-        for _, ex_row in existing_schedule.iterrows():
-            grp = str(ex_row.get("กลุ่มเรียน", "")).strip()
-            for phase in ["M", "F"]:
-                info = str(ex_row.get(f"วันเวลาสอบ_{phase}", ""))
-                if info and " [ห้อง " in info:
-                    slot_str = info.split(" [ห้อง ")[0].strip()
-                    rm_str = (
-                        info.split(" [ห้อง ")[1].replace("]", "").strip()
-                    )
-                    invs = str(ex_row.get(f"ผู้คุมสอบ_{phase}", "")).split(",")
-                    date_part = (
-                        slot_str.split(" ")[0] if " " in slot_str else slot_str
-                    )
-
-                    student_group_occupancy.setdefault(
-                        slot_str, set()
-                    ).add(grp)
-                    student_group_daily_count[
-                        (grp, date_part)
-                    ] = student_group_daily_count.get((grp, date_part), 0) + 1
-
-                    if rm_str:
-                        room_occupancy.setdefault(slot_str, set()).add(
-                            rm_str
-                        )
-
-                    for inv in invs:
-                        inv = inv.strip()
-                        if inv:
-                            invigilator_occupancy.setdefault(
-                                slot_str, set()
-                            ).add(inv)
-                            invigilator_workload[inv] = (
-                                invigilator_workload.get(inv, 0) + 1
-                            )
-
-    grouped_subjects = {}
-    for idx, row in df_subjects.iterrows():
-        subj_name = str(
-            get_column_value(row, ["ชื่อวิชา", "รายวิชา"], "ไม่ระบุวิชา")
-        ).strip()
-        instructor = str(
+    subj_teachers = list(
+        df_subjects[
             get_column_value(
-                row,
-                ["ชื่อผู้สอน", "ผู้สอน", "อาจารย์ผู้สอน", "อาจารย์"],
-                "อาจารย์ผู้สอน",
+                df_subjects,
+                ["ชื่อผู้สอน", "ผู้สอน", "อาจารย์ผู้สอน"],
+                df_subjects.columns[0],
             )
-        ).strip()
+        ]
+        .dropna()
+        .unique()
+    )
 
-        group_key = f"{subj_name}||{instructor}"
-        if group_key not in grouped_subjects:
-            grouped_subjects[group_key] = []
-        grouped_subjects[group_key].append(row)
+    grouped_tasks = []
+    for (code, name), group in df_subjects.groupby([
+        df_subjects.apply(
+            lambda r: get_column_value(r, ["รหัสวิชา"], ""), axis=1
+        ),
+        df_subjects.apply(
+            lambda r: get_column_value(r, ["ชื่อวิชา"], ""), axis=1
+        ),
+    ]):
+        grouped_tasks.append({"rows": group.to_dict("records")})
 
     results = []
 
-    # 🎯 ปรับปรุงฟังก์ชันคำนวณผู้คุมสอบตามกฎใหม่
     def assign_invigilators(
-        faculty_name, instructor, total_students, slot_str, subj_teachers
+        faculty_name, instructor, total_students, slot_str
     ):
-        rule = faculty_rule_map.get(faculty_name, 1)
+        min_rule = faculty_rule_map.get(faculty_name, 2)
         used_invs = invigilator_occupancy.get(slot_str, set())
         assigned = []
+
+        calc_req = math.ceil(total_students / 40)
+        req_count = max(min_rule, calc_req)
 
         fac_staff_df = df_staff_pool[df_staff_pool["คณะ"] == faculty_name]
         extra_teachers = list(
@@ -265,112 +279,56 @@ def auto_schedule_exams_advanced(
             ]["ชื่อ-นามสกุล"].unique()
         )
 
-        # กฎข้อที่ 1: ใช้ผู้คุมสอบ 1 คน (อาจารย์ผู้สอน)
-        if rule == 1:
-            req_count = 1
-            if instructor not in used_invs:
-                assigned.append(instructor)
+        if instructor not in used_invs:
+            assigned.append(instructor)
 
-        # กฎข้อที่ 2: ใช้ผู้คุมสอบ ขั้นต่ำ 2 คนเสมอ
-        elif rule == 2:
-            req_count = 2
-            if instructor not in used_invs:
-                assigned.append(instructor)
+        pool = list(set(subj_teachers + extra_teachers))
+        pool.sort(key=lambda t: invigilator_workload.get(t, 0))
 
-            # ดึงจากผู้สอนคนอื่น + อาจารย์ในคณะที่ไม่ได้ลงสอน
-            pool = list(set(subj_teachers + extra_teachers))
-            pool.sort(key=lambda t: invigilator_workload.get(t, 0))
+        for t in pool:
+            if len(assigned) >= req_count:
+                break
+            if t not in assigned and t not in used_invs:
+                assigned.append(t)
 
-            for t in pool:
-                if t not in assigned and t not in used_invs:
-                    assigned.append(t)
-                    if len(assigned) == req_count:
-                        break
+        if len(assigned) < req_count:
+            for staff in backup_staffs:
+                if len(assigned) >= req_count:
+                    break
+                if staff not in assigned and staff not in used_invs:
+                    assigned.append(staff)
 
-            # หากยังไม่ครบ 2 คน ให้ดึงเจ้าหน้าที่สำรอง
-            if len(assigned) < req_count:
-                for staff in backup_staffs:
-                    if staff not in assigned and staff not in used_invs:
-                        assigned.append(staff)
-                        if len(assigned) == req_count:
-                            break
+        return assigned
 
-        # กฎข้อที่ 3: ขั้นต่ำเริ่มที่ 2 คน (<=60 คนใช้ 2 คน, >60 คนใช้ 3 คน)
-        elif rule == 3:
-            if total_students <= 60:
-                req_count = 2  # ขั้นต่ำเริ่มต้นที่ 2 คน
-            else:
-                req_count = 3  # หากเกิน 60 คนใช้ 3 คน
-
-            if instructor not in used_invs:
-                assigned.append(instructor)
-
-            pool = list(set(subj_teachers + extra_teachers))
-            pool.sort(key=lambda t: invigilator_workload.get(t, 0))
-
-            for t in pool:
-                if t not in assigned and t not in used_invs:
-                    assigned.append(t)
-                    if len(assigned) == req_count:
-                        break
-
-            if len(assigned) < req_count:
-                for staff in backup_staffs:
-                    if staff not in assigned and staff not in used_invs:
-                        assigned.append(staff)
-                        if len(assigned) == req_count:
-                            break
-
-        if len(assigned) >= req_count:
-            return assigned
-        return None
-
-    # วนลูปจัดวิชา
-    for group_key, rows in grouped_subjects.items():
-        total_students = 0
-        groups_list = []
-        for r in rows:
-            grp = str(
-                get_column_value(r, ["กลุ่มเรียน", "กลุ่ม", "Sec"], "")
-            ).strip()
-            groups_list.append(grp)
-            try:
-                total_students += int(
-                    get_column_value(
-                        r, ["จำนวนผู้เข้าสอบ", "จำนวนนักศึกษา", "ลง"], 0
-                    )
-                )
-            except ValueError:
-                pass
-
-        first_row = rows[0]
-        subj_code_display = get_column_value(
-            first_row, ["รหัสวิชา", "รหัสวิชาสอบ"], "SUBJ"
-        )
-        subj_name_display = get_column_value(
-            first_row, ["ชื่อวิชา", "รายวิชา"], "ไม่ระบุวิชา"
-        )
-        faculty_name = get_column_value(
-            first_row, ["คณะ", "สังกัดคณะ"], "คณะเทคโนโลยีอุตสาหกรรมการเกษตร"
-        )
-        exam_type = str(
-            get_column_value(first_row, ["ประเภทการสอบ", "ประเภท"], "ทฤษฎี")
-        ).strip()
-        is_heavy = (
-            str(
+    for task in grouped_tasks:
+        rows = task["rows"]
+        groups_list = [
+            str(get_column_value(pd.Series(r), ["กลุ่มเรียน", "กลุ่ม"], "")).strip()
+            for r in rows
+        ]
+        total_students = sum(
+            parse_int_safe(
                 get_column_value(
-                    first_row, ["วิชาคำนวณ", "วิชาหนัก", "Heavy"], "NO"
+                    pd.Series(r), ["จำนวนผู้เข้าสอบ", "จำนวนนักศึกษา"], 0
                 )
             )
+            for r in rows
+        )
+
+        first_r = pd.Series(rows[0])
+        subj_code = get_column_value(first_r, ["รหัสวิชา"], "SUBJ")
+        subj_name = get_column_value(first_r, ["ชื่อวิชา"], "วิชาไม่ระบุ")
+        faculty_name = get_column_value(first_r, ["คณะ"], "หมวดวิชาศึกษาทั่วไป (GE)")
+        exam_type = str(
+            get_column_value(first_r, ["ประเภทการสอบ"], "ทฤษฎี")
+        ).strip()
+        is_heavy = (
+            str(get_column_value(first_r, ["วิชาคำนวณ"], "NO"))
             .strip()
             .upper()
             in ["YES", "Y", "TRUE", "1", "คำนวณ"]
         )
-        instructor = get_column_value(
-            first_row,
-            ["ชื่อผู้สอน", "ผู้สอน", "อาจารย์ผู้สอน", "อาจารย์"],
-            "อาจารย์ผู้สอน",
-        )
+        instructor = get_column_value(first_r, ["ชื่อผู้สอน"], "อาจารย์ผู้สอน")
 
         active_rooms = df_rooms[df_rooms["สถานะ"] == "ใช้งานได้"]
         target_type = (
@@ -378,22 +336,11 @@ def auto_schedule_exams_advanced(
             if ("ปฏิบัติ" in exam_type or "คอม" in exam_type)
             else "ห้องทฤษฎี"
         )
+
         valid_rooms = active_rooms[
             (active_rooms["ประเภท"] == target_type)
             & (active_rooms["ความจุสอบ"] >= total_students)
-        ]
-
-        subj_teachers = list(
-            df_subjects[
-                get_column_value(
-                    df_subjects,
-                    ["ชื่อผู้สอน", "ผู้สอน"],
-                    df_subjects.columns[0],
-                )
-            ]
-            .dropna()
-            .unique()
-        )
+        ].sort_values(by="ความจุสอบ")
 
         def find_best_slot(slots_list, hrs_val):
             if hrs_val <= 0:
@@ -405,19 +352,15 @@ def auto_schedule_exams_advanced(
                 slot_str = slot_obj["full_slot"]
                 date_str = slot_obj["date_str"]
 
-                conflict = any(
+                if any(
                     g in student_group_occupancy.get(slot_str, set())
                     for g in groups_list
-                )
-                if conflict:
+                ):
                     continue
 
-                if (
-                    max(
-                        student_group_daily_count.get((g, date_str), 0)
-                        for g in groups_list
-                    )
-                    >= 2
+                if any(
+                    student_group_daily_count.get((g, date_str), 0) >= 2
+                    for g in groups_list
                 ):
                     continue
 
@@ -428,14 +371,8 @@ def auto_schedule_exams_advanced(
                     continue
 
                 invig_list = assign_invigilators(
-                    faculty_name,
-                    instructor,
-                    total_students,
-                    slot_str,
-                    subj_teachers,
+                    faculty_name, instructor, total_students, slot_str
                 )
-                if not invig_list:
-                    continue
 
                 used_rms = room_occupancy.get(slot_str, set())
                 avail_rm = None
@@ -468,59 +405,40 @@ def auto_schedule_exams_advanced(
 
             return None, None, "NO_SLOT"
 
-        # กลางภาค
-        hrs_m = float(
-            get_column_value(
-                first_row, ["ชั่วโมงสอบ_M", "ชั่วโมงสอบกลางภาค"], 1.5
-            )
-        )
+        hrs_m = float(get_column_value(first_r, ["ชั่วโมงสอบ_M"], 2.0))
         m_slot, m_rm, m_inv = find_best_slot(slots_m, hrs_m)
+
+        hrs_f = float(get_column_value(first_r, ["ชั่วโมงสอบ_F"], 3.0))
+        f_slot, f_rm, f_inv = find_best_slot(slots_f, hrs_f)
+
         if not m_slot and hrs_m > 0:
             unassigned_warnings.append(
-                f"❌ **[{subj_code_display}] {subj_name_display} (กลางภาค)**: จัดลงตารางไม่ได้ (ห้องเต็ม/ผู้คุมสอบไม่เพียงพอ)"
+                f"❌ **[{subj_code}] {subj_name} (รวม {len(groups_list)} กลุ่ม - นศ. {total_students} คน) [กลางภาค]**: ไม่พบห้องสอบใหญ่พอรองรับ หรือช่วงเวลาเต็ม"
             )
-
-        # ปลายภาค
-        hrs_f = float(
-            get_column_value(
-                first_row, ["ชั่วโมงสอบ_F", "ชั่วโมงสอบปลายภาค"], 2.0
-            )
-        )
-        f_slot, f_rm, f_inv = find_best_slot(slots_f, hrs_f)
         if not f_slot and hrs_f > 0:
             unassigned_warnings.append(
-                f"❌ **[{subj_code_display}] {subj_name_display} (ปลายภาค)**: จัดลงตารางไม่ได้ (ห้องเต็ม/ผู้คุมสอบไม่เพียงพอ)"
+                f"❌ **[{subj_code}] {subj_name} (รวม {len(groups_list)} กลุ่ม - นศ. {total_students} คน) [ปลายภาค]**: ไม่พบห้องสอบใหญ่พอรองรับ หรือช่วงเวลาเต็ม"
             )
 
         for r in rows:
+            r_ser = pd.Series(r)
             results.append({
-                "คณะ": faculty_name,
-                "รหัสวิชา": get_column_value(
-                    r, ["รหัสวิชา", "รหัสวิชาสอบ"], "SUBJ"
+                "คณะ": get_column_value(r_ser, ["คณะ"], faculty_name),
+                "รหัสวิชา": subj_code,
+                "ชื่อวิชา": subj_name,
+                "กลุ่มเรียน": get_column_value(r_ser, ["กลุ่มเรียน"], ""),
+                "จำนวนผู้เข้าสอบ": parse_int_safe(
+                    get_column_value(r_ser, ["จำนวนผู้เข้าสอบ"], 0)
                 ),
-                "ชื่อวิชา": get_column_value(
-                    r, ["ชื่อวิชา", "รายวิชา"], "ไม่ระบุวิชา"
+                "ชื่อผู้สอน": get_column_value(r_ser, ["ชื่อผู้สอน"], instructor),
+                "วันเวลาสอบ_กลางภาค": (
+                    f"{m_slot} [{m_rm}]" if m_slot else "จัดไม่ได้"
                 ),
-                "ชื่อผู้สอน": instructor,
-                "สังกัดสาขา": get_column_value(r, ["สังกัดสาขา", "สาขา"], ""),
-                "กลุ่มเรียน": str(
-                    get_column_value(r, ["กลุ่มเรียน", "กลุ่ม", "Sec"], "")
-                ).strip(),
-                "จำนวนผู้เข้าสอบ": int(
-                    get_column_value(
-                        r, ["จำนวนผู้เข้าสอบ", "จำนวนนักศึกษา", "ลง"], 0
-                    )
+                "ผู้คุมสอบ_กลางภาค": m_inv if m_slot else "-",
+                "วันเวลาสอบ_ปลายภาค": (
+                    f"{f_slot} [{f_rm}]" if f_slot else "จัดไม่ได้"
                 ),
-                "ชั่วโมงสอบ_M": hrs_m if m_slot else "",
-                "ชั่วโมงสอบ_F": hrs_f if f_slot else "",
-                "วันเวลาสอบ_M": (
-                    f"{m_slot} [ห้อง {m_rm}]" if m_slot else "ไม่มีสอบ"
-                ),
-                "วันเวลาสอบ_F": (
-                    f"{f_slot} [ห้อง {f_rm}]" if f_slot else "ไม่มีสอบ"
-                ),
-                "ผู้คุมสอบ_M": m_inv if m_slot else "",
-                "ผู้คุมสอบ_F": f_inv if f_slot else "",
+                "ผู้คุมสอบ_ปลายภาค": f_inv if f_slot else "-",
             })
 
     return pd.DataFrame(results), list(set(unassigned_warnings))
@@ -548,7 +466,7 @@ if not st.session_state["logged_in"]:
 else:
     header_col1, header_col2 = st.columns([8, 2])
     with header_col1:
-        st.title("🏫 ระบบจัดการตารางสอบ")
+        st.title("🏫 ระบบจัดการตารางสอบ (สอบรวมห้องใหญ่)")
         st.caption("มหาวิทยาลัยเทคโนโลยีราชมงคลตะวันออก วิทยาเขตจันทบุรี")
     with header_col2:
         st.write(f"ผู้ใช้งาน: **{st.session_state['username']}**")
@@ -562,45 +480,55 @@ else:
         [
             "1. จัดตารางสอบประจำเทอม",
             "2. จัดการห้องสอบ (อัปเดตทุกเทอม)",
-            "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง (อัปเดตทุกเทอม)",
+            "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง",
         ],
     )
 
-    # ปุ่มดาวน์โหลดไฟล์ทดสอบบน Sidebar
     st.sidebar.markdown("---")
-    st.sidebar.header("📥 ตัวอย่างไฟล์ทดสอบ")
+    st.sidebar.header("📥 ดาวน์โหลดไฟล์ตัวอย่าง")
     st.sidebar.download_button(
-        label="ดาวน์โหลดไฟล์ตัวอย่างวิชาสอบ (.xlsx)",
+        label="ดาวน์โหลดไฟล์ตัวอย่าง (xlsx)",
         data=create_test_subject_excel(),
-        file_name="test_exam_subjects.xlsx",
+        file_name="test_subjects_combined.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
 
-    # ------------------ เมนูที่ 1: จัดตารางสอบ ------------------
     if menu_selection == "1. จัดตารางสอบประจำเทอม":
-        st.header("🗓️ จัดตารางสอบอัตโนมัติ")
+        st.header("🗓️ จัดตารางสอบอัตโนมัติ (สอบรวมห้องใหญ่)")
 
-        st.sidebar.markdown("---")
-        st.sidebar.header("⚙️ ตั้งค่าเงื่อนไขผู้คุมสอบประจำคณะ")
-        rule_fac1 = st.sidebar.selectbox(
-            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
-            [1, 2, 3],
-            format_func=lambda x: f"กฎคณะที่ {x}",
-            index=0,
-        )
-        rule_fac2 = st.sidebar.selectbox(
-            "คณะเทคโนโลยีสังคม",
-            [1, 2, 3],
-            format_func=lambda x: f"กฎคณะที่ {x}",
-            index=1,
-        )
+        st.subheader("⚙️ กำหนดเงื่อนไขจำนวนผู้คุมสอบขั้นต่ำตามสังกัดคณะ")
+        fac_col1, fac_col2, fac_col3 = st.columns(3)
+        with fac_col1:
+            rule_agri = st.number_input(
+                "🌾 คณะเทคโนโลยีอุตสาหกรรมการเกษตร (คน/ห้อง)",
+                min_value=1,
+                max_value=5,
+                value=2,
+            )
+        with fac_col2:
+            rule_soc = st.number_input(
+                "💼 คณะเทคโนโลยีสังคม (คน/ห้อง)",
+                min_value=1,
+                max_value=5,
+                value=2,
+            )
+        with fac_col3:
+            rule_gem = st.number_input(
+                "💎 คณะอัญมณี (คน/ห้อง)",
+                min_value=1,
+                max_value=5,
+                value=2,
+            )
+
         faculty_rule_map = {
-            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร": rule_fac1,
-            "คณะเทคโนโลยีสังคม": rule_fac2,
+            "คณะเทคโนโลยีอุตสาหกรรมการเกษตร": rule_agri,
+            "คณะเทคโนโลยีสังคม": rule_soc,
+            "คณะอัญมณี": rule_gem,
         }
 
-        st.sidebar.markdown("---")
+        st.markdown("---")
+
         st.sidebar.subheader("🗓️ กำหนดช่วงเวลาสอบ")
         m_start = st.sidebar.date_input(
             "เริ่มกลางภาค", datetime.date(2026, 8, 24)
@@ -615,10 +543,7 @@ else:
             "สิ้นสุดปลายภาค", datetime.date(2026, 11, 1)
         )
 
-        daily_slots = [
-            "09:00 - 12:00",
-            "13:30 - 16:30",
-        ]
+        daily_slots = ["09:00 - 12:00", "13:30 - 16:30"]
 
         uploaded_file = st.file_uploader(
             "นำเข้าไฟล์รายวิชาสอบ (.xlsx)", type=["xlsx"]
@@ -633,36 +558,31 @@ else:
                 slots_m = generate_time_slots(m_start, m_end, daily_slots)
                 slots_f = generate_time_slots(f_start, f_end, daily_slots)
 
-                df_new_result, warnings = auto_schedule_exams_advanced(
+                df_new_result, warnings = auto_schedule_exams_combined(
                     df_uploaded,
                     st.session_state["df_rooms"],
                     st.session_state["df_staff_pool"],
                     slots_m,
                     slots_f,
-                    existing_schedule=st.session_state["history_schedule"],
-                    faculty_rule_map=faculty_rule_map,
+                    faculty_rule_map,
                 )
 
-                st.session_state["history_schedule"] = pd.concat(
-                    [st.session_state["history_schedule"], df_new_result],
-                    ignore_index=True,
-                )
+                st.session_state["history_schedule"] = df_new_result
 
                 st.balloons()
-                st.success("✅ ประมวลผลตารางสอบเรียบร้อยแล้ว!")
+                st.success("✅ ประมวลผลจัดตารางสอบเรียบร้อยแล้ว!")
 
                 if warnings:
-                    st.error("🚨 **ตรวจพบข้อผิดพลาดที่ไม่สามารถจัดลงตารางได้:**")
+                    st.warning("⚠️ **ข้อสังเกตจากการจัดตารางสอบ:**")
                     for w in warnings:
                         st.write(w)
 
-                st.subheader("📊 ตารางสอบรวม")
-                st.dataframe(st.session_state["history_schedule"])
+                st.subheader("📊 ตารางสอบที่จัดสำเร็จ")
+                st.dataframe(df_new_result)
 
-    # ------------------ เมนูที่ 2: จัดการห้องสอบ ------------------
     elif menu_selection == "2. จัดการห้องสอบ (อัปเดตทุกเทอม)":
         st.header("🏫 จัดการข้อมูลห้องสอบประจำภาคเรียน")
-        st.caption("สามารถแก้ไข ลบ หรือเพิ่มห้องสอบใหม่ในตารางด้านล่างได้ทันที")
+        st.caption("แก้ไข/เพิ่มห้องประชุมใหญ่หรือหอประชุมสำหรับรองรับวิชาสอบรวมหลาย Sec ได้ที่นี่")
 
         edited_rooms = st.data_editor(
             st.session_state["df_rooms"],
@@ -675,41 +595,14 @@ else:
             st.session_state["df_rooms"] = edited_rooms
             st.success("บันทึกข้อมูลห้องสอบเรียบร้อยแล้ว!")
 
-    # ------------------ เมนูที่ 3: จัดการบุคลากรคุมสอบ ------------------
-    elif (
-        menu_selection
-        == "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง (อัปเดตทุกเทอม)"
-    ):
-        st.header(
-            "👥 จัดการรายชื่ออาจารย์นอกตารางสอบ & เจ้าหน้าที่สำรองส่วนกลาง"
-        )
-        st.info("💡 ข้อมูลส่วนนี้จะถูกดึงไปใช้คุมสอบอัตโนมัติ สำหรับ **กฎคณะที่ 2 และ กฎคณะที่ 3**")
-
+    elif menu_selection == "3. จัดการบุคลากรคุมสอบ/เจ้าหน้าที่สำรอง":
+        st.header("👥 รายชื่อเจ้าหน้าที่คุมสอบเสริม")
         edited_staff = st.data_editor(
             st.session_state["df_staff_pool"],
             num_rows="dynamic",
             use_container_width=True,
-            column_config={
-                "ประเภท": st.column_config.SelectboxColumn(
-                    "ประเภทบุคลากร",
-                    options=[
-                        "อาจารย์ในคณะ",
-                        "เจ้าหน้าที่สำรองส่วนกลาง",
-                    ],
-                    required=True,
-                ),
-                "คณะ": st.column_config.SelectboxColumn(
-                    "สังกัดคณะ",
-                    options=[
-                        "คณะเทคโนโลยีอุตสาหกรรมการเกษตร",
-                        "คณะเทคโนโลยีสังคม",
-                    ],
-                    required=True,
-                ),
-            },
             key="staff_editor",
         )
-
-        if st.button("บันทึกการปรับปรุงรายชื่อบุคลากร 💾", type="primary"):
+        if st.button("บันทึกรายชื่อ 💾", type="primary"):
             st.session_state["df_staff_pool"] = edited_staff
-            st.success("บันทึกข้อมูลรายชื่อบุคลากรเรียบร้อยแล้ว!")
+            st.success("บันทึกเรียบร้อย!")
